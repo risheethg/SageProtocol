@@ -59,13 +59,16 @@ def create_llm_chain(llm, chat_prompt):
     return LLMChain(llm=llm, prompt=chat_prompt)
 
 class ChatChain:
-    def __init__(self,):
+    def __init__(self):
         llm = create_llm()
         chat_prompt = create_prompt_from_template(calorie_prompt_template)
         self.llm_chain = create_llm_chain(llm, chat_prompt)
 
     def run(self, user_input):
-        return self.llm_chain.run(food_name=user_input)
+        if isinstance(user_input, list):  # Ensure user_input is a string, not a list
+            user_input = ", ".join(user_input) 
+          
+        return self.llm_chain.run({"food_list": user_input})
 
 def load_normal_chain():
     """ Loads the normal chatbot without retrieval. """
