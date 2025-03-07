@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Form submission
     const loginForm = document.getElementById('loginForm');
-    const signupForm = document.getElementById('signup-form').querySelector('form');
+    const signupForm = document.getElementById('signupForm');
 
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             if (data.success) {
-                window.location.href = '/'; // Redirect to home page on success
+                window.location.href = '/dashboard';
             } else {
                 alert(data.message);
             }
@@ -184,15 +184,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Collect all form data
         const formData = {
-            username: document.getElementById('email').value.split('@')[0],
             name: document.getElementById('name').value,
             email: document.getElementById('email').value,
             password: document.getElementById('signup-password').value,
-            height: document.getElementById('height').value,
-            weight: document.getElementById('weight').value,
-            pre_pregnancy_weight: document.getElementById('pre-pregnancy-weight').value,
-            age: document.getElementById('age').value,
-            trimester: document.getElementById('trimester').value,
+            height: parseFloat(document.getElementById('height').value),
+            weight: parseFloat(document.getElementById('weight').value),
+            pre_pregnancy_weight: parseFloat(document.getElementById('pre-pregnancy-weight').value),
+            age: parseInt(document.getElementById('age').value),
+            trimester: parseInt(document.getElementById('trimester').value),
             multiple_pregnancies: document.getElementById('multiple-pregnancies').value,
             medical_conditions: medicalConditions,
             diet_type: document.getElementById('diet-type').value,
@@ -218,13 +217,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             if (data.success) {
-                window.location.href = '/'; // Redirect to home page on success
+                window.location.href = '/dashboard';
             } else {
-                alert(data.message);
+                alert(data.message || 'An error occurred during signup');
             }
         } catch (error) {
-            alert('An error occurred during signup');
             console.error('Signup error:', error);
+            alert('An error occurred during signup. Please try again.');
         }
     });
 
