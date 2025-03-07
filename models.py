@@ -30,7 +30,11 @@ class User(UserMixin):
     def get_by_username(username):
         conn = sqlite3.connect('nutrilogic.db')
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
+        cursor.execute('''
+            SELECT id, username, email, name, height, weight, pre_pregnancy_weight, 
+                   age, trimester, multiple_pregnancies, medical_conditions, diet_type, allergies
+            FROM users WHERE username = ?
+        ''', (username,))
         user_data = cursor.fetchone()
         conn.close()
         
@@ -42,7 +46,11 @@ class User(UserMixin):
     def get_by_email(email):
         conn = sqlite3.connect('nutrilogic.db')
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM users WHERE email = ?', (email,))
+        cursor.execute('''
+            SELECT id, username, email, name, height, weight, pre_pregnancy_weight, 
+                   age, trimester, multiple_pregnancies, medical_conditions, diet_type, allergies
+            FROM users WHERE email = ?
+        ''', (email,))
         user_data = cursor.fetchone()
         conn.close()
         
