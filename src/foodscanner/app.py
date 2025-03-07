@@ -1,83 +1,90 @@
-import streamlit as st
-import tempfile  # To save temporary files
-from inference_sdk import InferenceHTTPClient,InferenceConfiguration
-from llm_chains import load_normal_chain
-import yaml
-import json  # To format data as JSON
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session
+import os
+import requests  # Import this to make a request to your own API
+from werkzeug.utils import secure_filename
+from calorie import process_image
 
-# Open config.yaml
-with open("config.yaml", "r") as f:
-    config = yaml.safe_load(f)
+app = Flask(__name__)
+app.secret_key = "supersecretkey"
 
-# Initialize the inference client
-CLIENT = InferenceHTTPClient(
-    api_url="https://detect.roboflow.com",
-    api_key="Xqu1B5tB0s3Di5Kpqi5N"
-)
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Utility Functions
-def clear_input_field():
-    st.session_state.user_question = st.session_state.user_input
-    st.session_state.user_input = ""
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-def set_send_input():
-    st.session_state.send_input = True
-    clear_input_field()
+@app.route("/process_image", methods=["POST"])
+def process_image_request():
+    print("Received request at /process_image")  # Debugging
 
-def load_chain():
-    return load_normal_chain()
+    # Read JSON data properly
+    data = request.get_json()
+    print("Received JSON:", data)  # Debugging
 
-# File uploader (accept only images)
-def main():
-    if "send_input" not in st.session_state:
-        st.session_state.send_input = False
-        st.session_state.user_question = ""
-    if "user_input" not in st.session_state:
-        st.session_state.user_input = ""
+    if not data or "filename" not in data:
+        print("No filename provided in JSON.")
+        return jsonify({"error": "No filename provided"}), 400
 
-    st.title("Food Scanner")
+    image_filename = data["filename"]
+    print("Processing image:", image_filename)  # Debugging
 
-    uploaded_file = st.file_uploader("Choose an image", type=["jpg", "jpeg", "png"], on_change=set_send_input, key="callback")
+    image_path = os.path.join(app.config["UPLOAD_FOLDER"], image_filename)
 
-    if uploaded_file is not None:
-        # Display uploaded image
-        st.image(uploaded_file, caption="Uploaded Image", use_container_width=True)
+    if not os.path.exists(image_path):
+        print(f"File not found: {image_path}")
+        return jsonify({"error": "File not found"}), 404
 
-        # Save uploaded file temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
-            temp_file.write(uploaded_file.read())  # Save image bytes
-            temp_file_path = temp_file.name  # Get file path
+    with open(image_path, "rb") as image_file:
+        image_bytes = image_file.read()
 
-        # Perform inference using the saved file path
-        custom_configuration = InferenceConfiguration(confidence_threshold=0.3, iou_threshold=0.5)
+    print("Image successfully read.")  # Debugging
 
-# Perform inference with the custom configuration
-        with CLIENT.use_configuration(custom_configuration):
-            result = CLIENT.infer(temp_file_path, model_id="calorie-tracker-pmuck/4")
+    response_data = process_image(image_bytes)
 
-        # Extract all detected food items
-        predictions = result["predictions"]
-        
-        if not predictions:
-            st.error("No food detected in the image. Please try another image.")
-            return
+    print("Final JSON output:", response_data)  # Debugging
 
-        # Format detected food items into a structured list
-        food_items = [pred["class"] for pred in predictions]  # Extract food names only
-        
-        # Display detected food items (only names)
-        st.subheader("Detected Food Items:")
-        st.write(", ".join(food_items))
-        st.session_state.user_input=food_items
+    return jsonify(response_data)
 
-        # Send extracted food names to LLM
-        llm_chain = load_chain()
-        llm_response = llm_chain.run(st.session_state.user_input)
-# Pass as string
 
-        # Display AI response (only the result, no JSON)
-        st.subheader("Nutritional Information:")
-        st.write(llm_response)  # Show only LLM output
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+
+import requests
+
+@app.route("/upload", methods=["POST"])
+def upload():
+    print("Received upload request.")  # Debugging
+
+    text_data = request.form.get("mealText")
+    file = request.files.get("mealImage")
+
+    if not file:
+        print("No image file received.")
+        return jsonify({"error": "No file uploaded"}), 400
+
+    uploaded_filename = secure_filename(file.filename)
+    file_path = os.path.join(app.config["UPLOAD_FOLDER"], uploaded_filename)
+    file.save(file_path)
+
+    print(f"File saved at: {file_path}")  # Debugging
+
+    # 🟢 Remove session storage
+    print("About to call /process_image with filename:", uploaded_filename)
+
+    try:
+        response = requests.post("http://127.0.0.1:5000/process_image", json={"filename": uploaded_filename})
+        print("Response from /process_image:", response.status_code, response.text)  # Debugging
+    except Exception as e:
+        print("Error calling /process_image:", e)  # Debugging
+
+    return redirect(url_for("details"))
+
+
+@app.route("/details")
+def details():
+    return render_template("details.html")
+
 
 if __name__ == "__main__":
-    main()
+    app.run(debug=True)
