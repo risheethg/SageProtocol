@@ -65,7 +65,7 @@ class ChatChain:
         self.llm_chain = create_llm_chain(llm, chat_prompt)
 
     def run(self, user_input):
-        return self.llm_chain.run(food_name=user_input)
+        return self.llm_chain.run(food_list=user_input)
 
 def load_normal_chain():
     """ Loads the normal chatbot without retrieval. """

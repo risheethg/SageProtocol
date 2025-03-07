@@ -3,6 +3,7 @@ import tempfile  # To save temporary files
 from inference_sdk import InferenceHTTPClient
 from llm_chains import load_normal_chain
 import yaml
+#import json
 
 #Open config.yaml
 with open("config.yaml", "r") as f:
@@ -36,7 +37,7 @@ def main():
         st.session_state.send_input = False
         st.session_state.user_question = ""
     if "user_input" not in st.session_state:
-        st.session_state.user_input = ""
+        st.session_state.user_input = []
 
     st.title("Food Scanner")
     chat_container = st.container()
@@ -55,10 +56,13 @@ def main():
         # Perform inference using the saved file path
         result = CLIENT.infer(temp_file_path, model_id="calorie-tracker-pmuck/4")
 
-        # Display the result
+        #Display the result
         predictions = result["predictions"]
-        food = predictions[0]["class"]
-        st.session_state.user_input = food
+        foods = []
+        for i in range(len(predictions)):
+            foods.append(predictions[i]["class"])
+        #food = predictions[0]["class"]
+        st.session_state.user_input = foods
 
         voice_rec, send_button_column = st.columns(2)
         with send_button_column:
@@ -69,8 +73,8 @@ def main():
         if send_button or st.session_state.send_input:
             if st.session_state.user_question != "":
                 with chat_container:
-                    st.chat_message("User").write(f"{food} calories...")
-                    llm_response = llm_chain.run(st.session_state.user_question)
+                    st.chat_message("User").write(f"{food} calories..." for food in foods)
+                    llm_response = llm_chain.run(st.session_state.user_input)
                     st.chat_message("ai").write(llm_response)
                     st.session_state.user_question = ""
 
