@@ -40,17 +40,17 @@
                             <h3>Due Date Countdown</h3>
                             <div class="countdown" id="due-date-countdown">
                                 <div class="countdown-item">
-                                    <span class="number" id="days">00</span>
-                                    <span class="label">Days</span>
+                                    <span class="number" id="days-passed">00</span>
+                                    <span class="label">Days Passed</span>
                                 </div>
+                                <div class="countdown-separator">/</div>
                                 <div class="countdown-item">
-                                    <span class="number" id="hours">00</span>
-                                    <span class="label">Hours</span>
+                                    <span class="number" id="total-days">280</span>
+                                    <span class="label">Total Days</span>
                                 </div>
-                                <div class="countdown-item">
-                                    <span class="number" id="minutes">00</span>
-                                    <span class="label">Minutes</span>
-                                </div>
+                            </div>
+                            <div class="due-date-text">
+                                Due Date: <span id="due-date">Loading...</span>
                             </div>
                         </div>
                         <div class="trimester-info">
@@ -103,6 +103,14 @@
                                 <div class="progress-bar">
                                     <div class="progress" id="water-progress"></div>
                                 </div>
+                            </div>
+                            <div class="water-controls">
+                                <button class="btn-water" onclick="addWater(0.25)">
+                                    <i class="fa-solid fa-plus"></i> Add 250ml
+                                </button>
+                                <button class="btn-water" onclick="addWater(-0.25)">
+                                    <i class="fa-solid fa-minus"></i> Remove 250ml
+                                </button>
                             </div>
                         </div>
                     </div>

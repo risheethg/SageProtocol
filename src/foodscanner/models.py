@@ -24,7 +24,15 @@ class User(UserMixin):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
-        return check_password_hash(self.password_hash, password)
+        conn = sqlite3.connect('nutrilogic.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT password_hash FROM users WHERE id = ?', (self.id,))
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            return check_password_hash(result[0], password)
+        return False
 
     @staticmethod
     def get_by_username(username):
