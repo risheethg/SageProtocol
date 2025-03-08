@@ -1,5 +1,5 @@
 model_path: "deepseek/deepseek-r1-distill-llama-70b:free"  # Using Hugging Face API
-api_key: "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"  # ✅ Add your API key here
+api_key: "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"  # ✅ Add your API key here
 
 model_config: 
     max_new_tokens: 512
