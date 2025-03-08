@@ -83,11 +83,21 @@ def init_db():
 
 @login_manager.user_loader
 def load_user(user_id):
+    """
+    Load a user from the database by their user ID.
+
+    Args:
+        user_id (int): The ID of the user to be loaded.
+
+    Returns:
+        User: An instance of the User class if found, otherwise None.
+    """
+
     conn = sqlite3.connect('nutrilogic.db')
     cursor = conn.cursor()
     cursor.execute('''
         SELECT id, username, email, name, height, weight, pre_pregnancy_weight, 
-               age, trimester, multiple_pregnancies, medical_conditions, diet_type, allergies
+            age, trimester, multiple_pregnancies, medical_conditions, diet_type, allergies
         FROM users WHERE id = ?
     ''', (user_id,))
     user_data = cursor.fetchone()
