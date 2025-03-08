@@ -1,25 +1,124 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Tab switching functionality
-    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabBtns = document.querySelectorAll('.tab-btn');
     const authForms = document.querySelectorAll('.auth-form');
+    const loginForm = document.getElementById('loginForm');
+    const signupForm = document.getElementById('signupForm');
 
-    tabButtons.forEach(button => {
-        button.addEventListener('click', () => {
+    // Check if we should show signup tab based on URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('tab') === 'signup') {
+        document.querySelector('[data-tab="signup"]').click();
+    }
+
+    // Handle tab switching
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
             // Remove active class from all tabs and forms
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            authForms.forEach(form => form.classList.remove('active'));
-
+            tabBtns.forEach(b => b.classList.remove('active'));
+            authForms.forEach(f => f.classList.remove('active'));
+            
             // Add active class to clicked tab and corresponding form
-            button.classList.add('active');
-            const formId = `${button.dataset.tab}-form`;
-            document.getElementById(formId).classList.add('active');
-
-            // Reset carousel if switching to signup
-            if (button.dataset.tab === 'signup') {
-                resetCarousel();
+            this.classList.add('active');
+            const targetForm = document.getElementById(`${this.dataset.tab}-form`);
+            if (targetForm) {
+                targetForm.classList.add('active');
             }
         });
     });
+
+    // Handle login form submission
+    loginForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalBtnText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Logging in...';
+
+        try {
+            const formData = {
+                username: this.querySelector('#username').value,
+                password: this.querySelector('#password').value
+            };
+
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Successful login
+                showNotification('Login successful! Redirecting...', 'success');
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 1000);
+            } else {
+                // Login failed
+                showNotification(data.message || 'Login failed. Please try again.', 'error');
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalBtnText;
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            showNotification('An error occurred. Please try again.', 'error');
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalBtnText;
+        }
+    });
+
+    // Function to show notifications
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+
+        // Style the notification
+        Object.assign(notification.style, {
+            position: 'fixed',
+            top: '20px',
+            right: '20px',
+            padding: '15px 25px',
+            borderRadius: '5px',
+            backgroundColor: type === 'success' ? '#4CAF50' : 
+                           type === 'error' ? '#f44336' : '#2196F3',
+            color: 'white',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+            zIndex: '1000',
+            animation: 'slideIn 0.3s ease-out'
+        });
+
+        // Add animation keyframes
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        document.body.appendChild(notification);
+
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease-out';
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }, 3000);
+    }
 
     // Carousel functionality
     const slides = document.querySelectorAll('.carousel-slide');
@@ -86,37 +185,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Form submission
-    const loginForm = document.getElementById('loginForm');
-    const signupForm = document.getElementById('signupForm');
-
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-
-        try {
-            const response = await fetch('/api/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ username, password })
-            });
-
-            const data = await response.json();
-            
-            if (data.success) {
-                window.location.href = '/dashboard';
-            } else {
-                alert(data.message);
-            }
-        } catch (error) {
-            alert('An error occurred during login');
-            console.error('Login error:', error);
-        }
-    });
-
     // Handle "Other" medical condition
     const otherConditionCheckbox = document.getElementById('other_condition');
     const otherConditionInput = document.getElementById('other_condition_input');
@@ -128,16 +196,6 @@ document.addEventListener('DOMContentLoaded', function() {
             otherConditionText.value = '';
         }
     });
-
-    // Check URL parameters for tab navigation
-    const urlParams = new URLSearchParams(window.location.search);
-    const tab = urlParams.get('tab');
-    if (tab === 'signup') {
-        const signupTab = document.querySelector('[data-tab="signup"]');
-        if (signupTab) {
-            signupTab.click();
-        }
-    }
 
     // Form validation function
     function validateForm(formData) {
