@@ -1,7 +1,7 @@
 import tempfile
 import json
 import yaml
-from roboflow.inference import InferenceHTTPClient, InferenceConfiguration
+from inference_sdk import InferenceHTTPClient, InferenceConfiguration
 from llm_chains import load_normal_chain  # Load your LLM processing function
 
 # Load config

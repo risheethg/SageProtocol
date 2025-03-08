@@ -59,6 +59,24 @@ def save_meal_image(file):
 def init_db():
     conn = sqlite3.connect('nutrilogic.db')
     cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            name TEXT,
+            height REAL,
+            weight REAL,
+            pre_pregnancy_weight REAL,
+            age INTEGER,
+            trimester INTEGER,
+            multiple_pregnancies BOOLEAN,
+            medical_conditions TEXT,
+            diet_type TEXT,
+            allergies TEXT
+        )
+    ''')
     
     # Create meals table if it doesn't exist
     cursor.execute('''
@@ -69,7 +87,7 @@ def init_db():
             description TEXT,
             calories INTEGER DEFAULT 0,
             protein REAL DEFAULT 0,
-            folic_acid REAL DEFAULT 0,
+            folic_acid REAL DEFAULT 0, 
             iron REAL DEFAULT 0,
             vitamin_d REAL DEFAULT 0,
             calcium REAL DEFAULT 0,
@@ -122,109 +140,124 @@ def log_meal():
     return render_template('log_meal.html')
 
 @app.route("/process_image", methods=["POST"])
-@login_required
 def process_image_request():
-    """Process the uploaded image for nutrition analysis"""
     try:
+        print("Received request at /process_image")  # Debugging
+
         data = request.get_json()
+        print("Received JSON:", data)  # Debugging
+
         if not data or "filename" not in data:
             return jsonify({"error": "No filename provided"}), 400
 
-        image_path = os.path.join(app.config["UPLOAD_FOLDER"], data["filename"])
+        image_filename = data["filename"]
+        print("Processing image:", image_filename)  # Debugging
+
+        image_path = os.path.join(app.config["UPLOAD_FOLDER"], image_filename)
+
         if not os.path.exists(image_path):
+            print(f"File not found: {image_path}")
             return jsonify({"error": "File not found"}), 404
 
         with open(image_path, "rb") as image_file:
             image_bytes = image_file.read()
 
+        print("Image successfully read.")  # Debugging
+
         response_data = process_image(image_bytes)
-        if "error" in response_data:
-            return jsonify(response_data), 400
+
+        print("Final JSON output:", response_data)  # Debugging
 
         return jsonify(response_data)
-        
+
     except Exception as e:
-        print(f"Error processing image: {str(e)}")
-        print(traceback.format_exc())
-        return jsonify({"error": "Failed to process image"}), 500
+        print(f"Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route("/upload", methods=["POST"])
-@login_required
+
 def upload():
     """Handle meal image upload and nutrition analysis"""
     try:
-        # Validate request
-        if 'mealImage' not in request.files:
-            return jsonify({"error": "No image file provided"}), 400
-            
-        file = request.files['mealImage']
-        if file.filename == '':
-            return jsonify({"error": "No selected file"}), 400
-            
-        # Get meal description
+        print("Received upload request.")  # Debugging
+
+        # Get text description (optional)
         text_data = request.form.get("mealText", "")
-        
-        # Save the image
-        success, message, filename = save_meal_image(file)
-        if not success:
-            return jsonify({"error": message}), 400
-            
-        # Process image for nutrition data
+
+        # Check if file is present in request
+        file = request.files.get("mealImage")
+        if not file or file.filename == '':
+            print("No image file received.")  # Debugging
+            return jsonify({"error": "No image file provided"}), 400
+
+        # Secure and save the image
+        uploaded_filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config["UPLOAD_FOLDER"], uploaded_filename)
+        file.save(file_path)
+
+        print(f"File saved at: {file_path}")  # Debugging
+
+        # 🟢 Call /process_image to analyze nutrition
+        print("About to call /process_image with filename:", uploaded_filename)
+
         try:
             response = requests.post(
                 "http://127.0.0.1:5000/process_image", 
-                json={"filename": filename}
+                json={"filename": uploaded_filename}
             )
-            
-            if not response.ok:
-                return jsonify({"error": "Failed to process image"}), 500
-                
+
+            print("Response from /process_image:", response.status_code, response.text[:500])  # Debugging
+
+            # Ensure JSON response
+            if "application/json" not in response.headers.get("Content-Type", ""):
+                print("Error: Expected JSON, received non-JSON response.")
+                return jsonify({"error": "Invalid response from server"}), 500
+
             nutrition_data = response.json()
-            
-            # Save meal data to database
-            conn = sqlite3.connect('nutrilogic.db')
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                INSERT INTO meals (
-                    user_id, image_path, description, calories, protein, 
-                    folic_acid, iron, vitamin_d, calcium
-                )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                current_user.id,
-                filename,
-                text_data,
-                nutrition_data.get('calories', 0),
-                nutrition_data.get('protein', 0),
-                nutrition_data.get('folic_acid', 0),
-                nutrition_data.get('iron', 0),
-                nutrition_data.get('vitamin_d', 0),
-                nutrition_data.get('calcium', 0)
-            ))
-            
-            conn.commit()
-            conn.close()
-            
-            return jsonify({
-                "success": True,
-                "message": "Meal logged successfully",
-                "nutrition_data": nutrition_data
-            })
-            
+            print("Received nutrition data:", nutrition_data)  # Debugging
+
         except requests.RequestException as e:
-            # Clean up the uploaded file if processing fails
-            cleanup_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-            if os.path.exists(cleanup_path):
-                os.remove(cleanup_path)
+            print("Error calling /process_image:", e)  # Debugging
             return jsonify({"error": "Failed to process image"}), 500
-            
+
+        # 🟢 Save meal data to the database
+        conn = sqlite3.connect('nutrilogic.db')
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT INTO meals (
+                user_id, image_path, description, calories, protein, 
+                folic_acid, iron, vitamin_d, calcium
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            current_user.id,
+            uploaded_filename,
+            text_data,
+            nutrition_data.get('calories', 0),
+            nutrition_data.get('protein', 0),
+            nutrition_data.get('folic_acid', 0),
+            nutrition_data.get('iron', 0),
+            nutrition_data.get('vitamin_d', 0),
+            nutrition_data.get('calcium', 0)
+        ))
+
+        conn.commit()
+        conn.close()
+
+        print("Meal logged successfully in database.")  # Debugging
+
+        return jsonify({
+            "success": True,
+            "message": "Meal logged successfully",
+            "nutrition_data": nutrition_data
+        })
+
     except Exception as e:
         print(f"Error in upload: {str(e)}")
-        print(traceback.format_exc())
         return jsonify({"error": "An unexpected error occurred"}), 500
 
-    return redirect(url_for("dashboard"))
 
 @app.route('/api/meals')
 @login_required
