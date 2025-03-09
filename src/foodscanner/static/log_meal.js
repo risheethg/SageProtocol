@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const clearButton = document.getElementById('clearButton');
     const uploadProgress = document.getElementById('uploadProgress');
     const errorMessage = document.getElementById('errorMessage');
+    const mealText = document.getElementById('mealText');
     
     // Maximum file size in bytes (16MB)
     const MAX_FILE_SIZE = 16 * 1024 * 1024;
@@ -43,6 +44,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 <span class="change-image">Click to change image</span>
             `;
             submitButton.disabled = false;
+            // Disable text input when image is uploaded
+            mealText.disabled = true;
+            mealText.placeholder = "Text input disabled when image is uploaded";
         };
         reader.readAsDataURL(file);
     }
@@ -56,7 +60,27 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
         submitButton.disabled = true;
         errorMessage.classList.add('hidden');
+        // Re-enable both inputs when form is cleared
+        mealText.disabled = false;
+        mealText.placeholder = "Describe your meal...";
+        imagePreview.style.pointerEvents = 'auto';
+        imagePreview.style.opacity = '1';
     }
+    
+    // Handle text input
+    mealText.addEventListener('input', function() {
+        if (this.value.trim()) {
+            // Disable image upload when text is entered
+            imagePreview.style.pointerEvents = 'none';
+            imagePreview.style.opacity = '0.5';
+            submitButton.disabled = false;
+        } else {
+            // Re-enable image upload when text is cleared
+            imagePreview.style.pointerEvents = 'auto';
+            imagePreview.style.opacity = '1';
+            submitButton.disabled = true;
+        }
+    });
     
     // Handle drag and drop
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -68,7 +92,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     ['dragenter', 'dragover'].forEach(eventName => {
         imagePreview.addEventListener(eventName, () => {
-            imagePreview.classList.add('drag-active');
+            if (!mealText.value.trim()) {
+                imagePreview.classList.add('drag-active');
+            }
         });
     });
     
@@ -79,6 +105,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     imagePreview.addEventListener('drop', (e) => {
+        if (mealText.value.trim()) return; // Prevent drop if text is entered
+        
         const file = e.dataTransfer.files[0];
         if (file && validateFile(file)) {
             imageInput.files = e.dataTransfer.files;
@@ -88,7 +116,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Handle click to upload
     imagePreview.addEventListener('click', () => {
-        imageInput.click();
+        if (!mealText.value.trim()) {
+            imageInput.click();
+        }
     });
     
     imageInput.addEventListener('change', (e) => {
@@ -104,27 +134,48 @@ document.addEventListener('DOMContentLoaded', function() {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         
-        const formData = new FormData(form);
+        const formData = new FormData();
+        const mealImage = document.getElementById('mealImage').files[0];
+        const mealText = document.getElementById('mealText').value.trim();
+        
+        if (!mealImage && !mealText) {
+            showError('Please either upload an image or enter meal description');
+            return;
+        }
+        
+        if (mealImage) {
+            formData.append('mealImage', mealImage);
+        }
+        if (mealText) {
+            formData.append('mealText', mealText);
+        }
+        
+        // Show upload progress
+        uploadProgress.classList.remove('hidden');
+        submitButton.disabled = true;
         
         try {
-            uploadProgress.classList.remove('hidden');
-            
+            console.log('Submitting form data...');
             const response = await fetch('/upload', {
                 method: 'POST',
                 body: formData
             });
             
+            console.log('Response received:', response);
             const data = await response.json();
+            console.log('Response data:', data);
             
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to upload meal');
+            if (data.success) {
+                // Redirect to meal analysis page
+                window.location.href = '/meal-analysis';
+            } else {
+                showError(data.message || 'Failed to analyze meal');
+                submitButton.disabled = false;
             }
-            
-            // Redirect to dashboard on success
-            window.location.href = '/dashboard';
-            
         } catch (error) {
-            showError(error.message);
+            console.error('Upload error:', error);
+            showError('An error occurred while uploading the meal');
+            submitButton.disabled = false;
         } finally {
             uploadProgress.classList.add('hidden');
         }

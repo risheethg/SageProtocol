@@ -116,8 +116,7 @@ function getOrdinalSuffix(n) {
 
 // Handle Log Food button click
 document.querySelector('.btn-log-food').addEventListener('click', () => {
-    // TODO: Implement food logging functionality
-    alert('Food logging feature coming soon!');
+    window.location.href = '/log-meal';
 });
 
 // Initialize dashboard
